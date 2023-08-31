@@ -5,10 +5,13 @@
  * @format
  */
 
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import type {PropsWithChildren} from 'react';
 import {
+  Alert,
+  DeviceEventEmitter,
   NativeModules,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -61,6 +64,7 @@ function Section({children, title}: SectionProps): JSX.Element {
 }
 
 function App(): JSX.Element {
+  const [vpnState, setVPNState] = useState(false);
   const isDarkMode = useColorScheme() === 'dark';
 
   const backgroundStyle = {
@@ -91,18 +95,43 @@ function App(): JSX.Element {
       };
     };
 
-    const unsubscribe = NetInfo.addEventListener(state => {
-      alert('NetInfo ' + state.type);
-    });
-
     const androidDetectVPNHandler = () => {
-      // NativeModules.VPNModule.isVPNConnected(isVPNConnected => {
+      // NativeModules.VPNModule.isVPNConnected((isVPNConnected: boolean) => {
       //   alert('is android using VPN from native module ' + isVPNConnected);
       // });
 
+      // const vpnManagerEmitter = new NativeEventEmitter(NativeModules.VPNModule);
+      // const listener = vpnManagerEmitter.addListener(
+      //   'onVPNConnectionChanged',
+      //   state => {
+      //     console.log('ssssss', state.vpnState);
+      //     alert('state: ' + state.vpnState);
+      //   },
+      // );
+
+      // NativeModules.VPNModule.startListening();
+
+      const vpnManagerEmitter = new NativeEventEmitter(NativeModules.VPNModule);
+
+      const vpnStatusListener = vpnManagerEmitter.addListener(
+        'VPNStatus',
+        status => {
+          setVPNState(status.isVpnActive);
+          Alert.alert('status', JSON.stringify(status));
+          if (status.isVpnActive) {
+            // VPN is active
+            alert('VPN is active');
+          } else {
+            // VPN is not active
+            alert('VPN is not active');
+          }
+        },
+      );
+
       return {
         remove: () => {
-          //
+          vpnStatusListener.remove();
+          // NativeModules.VPNModule.stopListening();
         },
       };
     };
@@ -113,7 +142,6 @@ function App(): JSX.Element {
 
     return () => {
       VPNHandler.remove();
-      unsubscribe();
     };
   }, []);
 
@@ -131,6 +159,7 @@ function App(): JSX.Element {
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
+          <Text>{vpnState ? 'Connected' : 'DisConnected'}</Text>
           <Section title="Step One">
             Edit <Text style={styles.highlight}>App.tsx</Text> to change this
             screen and then come back to see your edits.
